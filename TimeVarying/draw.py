@@ -12,8 +12,8 @@ OUTPUT_FIGURE = SCRIPT_DIR / "time_varying.eps"
 RESULT_SPECS = [
     ("Double-DQ", "double_dq_results.npz", "red", "-"),
     ("Double-Q", "double_queue_results.npz", "orange", "-."),
-    ("[24]", "naive_surrogate_gd_results.npz", "black", ":"),
-    ("[29]", "coco_results.npz", "blue", "--"),
+    ("[24]", "baseline_24_results.npz", "black", ":"),
+    ("[29]", "baseline_29_results.npz", "blue", "--"),
 ]
 
 

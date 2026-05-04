@@ -30,8 +30,8 @@ Python 3.11 or a recent Python 3 environment is recommended.
 ```bash
 python FraudDetection/double_dq.py
 python FraudDetection/double_queue.py
-python FraudDetection/naive_surrogate_gd.py
-python FraudDetection/coco.py
+python FraudDetection/baseline_24.py
+python FraudDetection/baseline_29.py
 python FraudDetection/draw.py
 ```
 

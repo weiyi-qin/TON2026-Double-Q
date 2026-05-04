@@ -12,8 +12,8 @@ import torch.nn as nn
 SEED = 53
 BATCH_SIZE = 50
 DEVICE = torch.device("cpu")
-ALGORITHM_LABEL = "[29]"
-OUTPUT_FILE = "coco_results.npz"
+ALGORITHM_LABEL = "[24]"
+OUTPUT_FILE = "baseline_24_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_PATH = SCRIPT_DIR / "creditcard.csv"
@@ -53,6 +53,10 @@ class SigmoidModel(nn.Module):
 
 
 loss_fn = torch.nn.BCELoss()
+
+
+def zero_tensor():
+    return torch.tensor(0.0, dtype=torch.float32, device=DEVICE)
 
 
 def positive_part(value):
@@ -144,6 +148,12 @@ def hard_violation(vector, bound):
     return positive_part(parameter_constraint_value(vector, bound))
 
 
+def hard_constraint_gradient(vector, bound):
+    if parameter_constraint_value(vector, bound) > 0:
+        return torch.sign(vector) + vector
+    return torch.zeros_like(vector)
+
+
 def project_to_constraint(vector, bound, max_iter=80):
     bound = torch.as_tensor(bound, dtype=vector.dtype, device=vector.device)
     if parameter_constraint_value(vector, bound) <= 0:
@@ -168,8 +178,13 @@ def project_to_constraint(vector, bound, max_iter=80):
     return projected(high)
 
 
-def project_to_x_t(vector, bound):
-    return project_to_constraint(vector, bound)
+def distance_and_gradient_to_constraint(vector, bound, scale=1.0):
+    projection = project_to_constraint(vector, bound)
+    diff = vector - projection
+    distance = torch.norm(diff)
+    if distance < 1e-10:
+        return zero_tensor(), torch.zeros_like(vector)
+    return scale * distance, scale * diff / distance
 
 
 def append_metrics(losses, violations, time_loss, time_violation, loss_item, model, constraint_upper, t):
@@ -181,11 +196,12 @@ def append_metrics(losses, violations, time_loss, time_violation, loss_item, mod
     return time_loss, time_violation
 
 
-def run_coco(raw_data):
+def run_native_sgd(raw_data):
     z, y, step, model, constraint_upper = prepare_experiment_state(raw_data)
 
-    d_coco = 1
-    g_coco = 20.0
+    d_lip = 20.0
+    radius = 1.0
+    gradient_norms = []
     averaged_loss = []
     averaged_violation = []
     time_loss = 0.0
@@ -195,14 +211,22 @@ def run_coco(raw_data):
         model.train()
         loss_item, loss_grad = loss_value_and_gradient(model, z, y, t)
         vector = flatten_parameters(model)
-        eta_t = 2 * d_coco / (g_coco * np.sqrt(t + 1))
-        candidate = vector - eta_t * loss_grad
 
-        if t > 1:
-            candidate = project_to_x_t(candidate, constraint_upper[t - 2])
-        candidate = project_to_x_t(candidate, constraint_upper[t - 1])
+        _, distance_grad = distance_and_gradient_to_constraint(
+            vector,
+            constraint_upper[t - 1],
+            scale=d_lip,
+        )
+        constraint_grad = hard_constraint_gradient(vector, constraint_upper[t - 1])
+        constraint_weight = 2.0
+        gradient = loss_grad + distance_grad + constraint_weight * constraint_grad
 
-        assign_flat_parameters(model, candidate)
+        gradient_norm = torch.sum(gradient * gradient)
+        gradient_norms.append(gradient_norm)
+        eta = 2 * np.sqrt(2) * radius / torch.sqrt(torch.stack(gradient_norms).sum() + 1e-8)
+        new_vector = vector - eta * gradient
+
+        assign_flat_parameters(model, new_vector)
         time_loss, time_violation = append_metrics(
             averaged_loss,
             averaged_violation,
@@ -215,7 +239,7 @@ def run_coco(raw_data):
         )
 
         if (t + 1) % 1000 == 0:
-            print(f"COCO {t + 1}")
+            print(f"NativeSGD {t + 1}")
 
     return {"loss": averaged_loss, "violation": averaged_violation}
 
@@ -223,9 +247,9 @@ def run_coco(raw_data):
 def run_experiment():
     raw_data = load_raw_data()
     print(f"Loaded {DATA_PATH.name}: {raw_data.shape[0]} rows, {raw_data.shape[1]} columns")
-    print("Start running COCO algorithm...")
+    print("Start running NativeSGD algorithm...")
     started_at = time.time()
-    result = run_coco(raw_data)
+    result = run_native_sgd(raw_data)
     elapsed = time.time() - started_at
 
     loss = np.array(result["loss"])
@@ -238,7 +262,7 @@ def run_experiment():
         total_steps=len(loss),
         algorithm_label=ALGORITHM_LABEL,
     )
-    print(f"COCO algorithm completed in {elapsed:.2f} seconds. Results saved to {output_path}")
+    print(f"NativeSGD algorithm completed in {elapsed:.2f} seconds. Results saved to {output_path}")
 
 
 if __name__ == "__main__":

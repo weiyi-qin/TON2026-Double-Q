@@ -11,7 +11,7 @@ SEED = 200
 X_DIM = 100
 ROUND_NUM = 1
 ALGORITHM_LABEL = "[29]"
-OUTPUT_FILE = "coco_results.npz"
+OUTPUT_FILE = "baseline_29_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 COST_DATA_FILE = SCRIPT_DIR / "filtered_file.csv"

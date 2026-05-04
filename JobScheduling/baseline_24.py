@@ -11,7 +11,7 @@ SEED = 200
 X_DIM = 100
 ROUND_NUM = 1
 ALGORITHM_LABEL = "[24]"
-OUTPUT_FILE = "naive_surrogate_gd_results.npz"
+OUTPUT_FILE = "baseline_24_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 COST_DATA_FILE = SCRIPT_DIR / "filtered_file.csv"

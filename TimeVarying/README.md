@@ -26,8 +26,8 @@ Python 3.11 or a recent Python 3 environment is recommended.
 ```bash
 python TimeVarying/double_dq.py
 python TimeVarying/double_queue.py
-python TimeVarying/naive_surrogate_gd.py
-python TimeVarying/coco.py
+python TimeVarying/baseline_24.py
+python TimeVarying/baseline_29.py
 python TimeVarying/draw.py
 ```
 

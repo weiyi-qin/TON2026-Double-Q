@@ -29,8 +29,8 @@ Python 3.11 or a recent Python 3 environment is recommended.
 ```bash
 python JobScheduling/double_dq.py
 python JobScheduling/double_queue.py
-python JobScheduling/naive_surrogate_gd.py
-python JobScheduling/coco.py
+python JobScheduling/baseline_24.py
+python JobScheduling/baseline_29.py
 python JobScheduling/draw.py
 ```
 

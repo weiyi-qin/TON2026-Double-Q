@@ -26,8 +26,8 @@ Python 3.11 or a recent Python 3 environment is recommended.
 ```bash
 python Fixed/double_dq.py
 python Fixed/double_queue.py
-python Fixed/naive_surrogate_gd.py
-python Fixed/coco.py
+python Fixed/baseline_24.py
+python Fixed/baseline_29.py
 python Fixed/draw.py
 ```
 
