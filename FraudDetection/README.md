@@ -25,12 +25,6 @@ pip install numpy pandas scikit-learn torch matplotlib
 
 Python 3.11 or a recent Python 3 environment is recommended.
 
-## Data
-
-Place this file in the `FraudDetection` folder before running the scripts:
-
-- `creditcard.csv`
-
 ## Run
 
 ```bash
