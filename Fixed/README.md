@@ -4,8 +4,7 @@ This folder reproduces the fixed-constraint online quadratic programming experim
 
 The compared methods are `Double-DQ`, `Double-Q`, `PSGD` (`[24]`), and `SGDP` (`[29]`). Here, `[24]` denotes S. Supantha and A. Sinha, "Universal Dynamic Regret and Constraint Violation Bounds for Constrained Online Convex Optimization," arXiv:2510.01867, 2025, and `[29]` denotes R. Vaze and A. Sinha, "O(sqrt(T)) Static Regret and Instance Dependent Constraint Violation for Constrained Online Convex Optimization," in Proc. Adv. Neural Info. Proc. Sys. (NeurIPS), 2025. Each script saves its accumulated loss and hard violation results as an `.npz` file, and `draw.py` reads these files to generate the final figure.
 
-For a fair comparison, all algorithms use the same experiment setup. We only tune the multiplicative factor of each algorithm's learning rate or step size to obtain its best empirical performance, while keeping the other parameters consistent or following the paper setting.
-For `PSGD` (`[24]`) and `SGDP` (`[29]`), we use the suggested parameter settings from the original papers and fine-tune only constants that do not affect the theoretical rates.
+For a fair comparison, all algorithms use the same experiment setup. We fine-tune multiplicative factors in the learning rates or step sizes. We also fine-tune constants that do not affect the theoretical rates. Constants that play the same role are kept identical across algorithms.
 
 ## Requirements
 
