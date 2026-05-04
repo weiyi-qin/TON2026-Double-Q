@@ -180,7 +180,7 @@ def run_double_q(raw_data):
 
         zq = zq + beta * hard_violation(vector, constraint_upper[t - 1])
         loss_gradient_norm_sum += torch.sum(loss_grad * loss_grad)
-        alpha = 0.2 * torch.sqrt((loss_gradient_norm_sum + 1e-8) / 2) / r_const
+        alpha = 0.1 * torch.sqrt((loss_gradient_norm_sum + 1e-8) / 2) / r_const
 
         if constraint_prev > 0:
             smooth_grad = lam * torch.exp(lam * zq) * beta * 2 * vector

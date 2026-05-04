@@ -195,7 +195,7 @@ def run_coco(raw_data):
         model.train()
         loss_item, loss_grad = loss_value_and_gradient(model, z, y, t)
         vector = flatten_parameters(model)
-        eta_t = 0.1 * d_coco / (g_coco * np.sqrt(t + 1))
+        eta_t = 2 * d_coco / (g_coco * np.sqrt(t + 1))
         candidate = vector - eta_t * loss_grad
 
         if t > 1:
