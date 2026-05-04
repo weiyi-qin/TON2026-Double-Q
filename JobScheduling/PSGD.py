@@ -10,8 +10,8 @@ import pandas as pd
 SEED = 200
 X_DIM = 100
 ROUND_NUM = 1
-ALGORITHM_LABEL = "[29]"
-OUTPUT_FILE = "baseline_29_results.npz"
+ALGORITHM_LABEL = "PSGD"
+OUTPUT_FILE = "baseline_24_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 COST_DATA_FILE = SCRIPT_DIR / "filtered_file.csv"
@@ -69,6 +69,12 @@ def service_rate(x):
     return float(np.sum(4.0 * np.log(1.0 + 4.0 * x_vec)))
 
 
+def service_grad(x):
+    x_vec = np.array(x, dtype=float).reshape(-1, 1)
+    x_vec = np.maximum(x_vec, 0.0)
+    return 16.0 / (1.0 + 4.0 * x_vec)
+
+
 def project_to_box(x):
     return np.clip(np.array(x, dtype=float), 0.0, 100.0)
 
@@ -96,6 +102,17 @@ def project_onto_capacity(x_point, lambda_target):
     if y_var.value is None:
         return project_to_box(x_point)
     return y_var.value
+
+
+def distance_and_gradient_to_capacity(x_point, lambda_target, d_lip):
+    projection = project_onto_capacity(x_point, lambda_target)
+    diff = np.array(x_point) - np.array(projection)
+    dist_norm = float(np.linalg.norm(diff))
+
+    if dist_norm < 1e-10:
+        return 0.0, np.zeros_like(x_point)
+
+    return d_lip * dist_norm, d_lip * diff / dist_norm
 
 
 def evaluate_trajectory(choice_history, delay_history, ct, job_arrival_number, total_steps):
@@ -126,59 +143,79 @@ def evaluate_trajectory(choice_history, delay_history, ct, job_arrival_number, t
     return np.array(accumulated_loss), np.array(accumulated_violation)
 
 
-def coco_centralized(step, choice_history, coco_state, lambda_delay, ct, job_arrival_number):
+def naive_surrogate_gd_centralized(
+    step,
+    choice_history,
+    gradient_norms,
+    lambda_delay,
+    ct,
+    job_arrival_number,
+):
     if step == 1:
         lambda_estimate = job_arrival_number[0]
-        return np.zeros((X_DIM, 1)), coco_state, lambda_estimate
+        return np.zeros((X_DIM, 1)), 0.0, lambda_estimate
 
-    x_t = choice_history[-1]
+    x_prev = choice_history[-1]
     ct_estimate = np.array(ct[step - 2]).reshape(-1, 1)
+    lambda_estimate = job_arrival_number[step - 2] + lambda_delay
 
-    d_coco = 10 * np.sqrt(10)
-    g_coco = 100
-    eta_t = 2 * d_coco / (g_coco * np.sqrt(step))
+    grad_loss = ct_estimate
+    d_lip = 10*np.sqrt(10)
+    _, grad_dist = distance_and_gradient_to_capacity(x_prev, lambda_estimate, d_lip)
 
-    v_t = x_t - eta_t * ct_estimate
+    g_value = lambda_estimate - service_rate(x_prev)
+    if g_value > 0:
+        grad_hinge = -service_grad(x_prev)
+    else:
+        grad_hinge = np.zeros_like(x_prev)
 
-    lambda_tm1 = job_arrival_number[step - 2] + lambda_delay
-    x_next = project_onto_capacity(v_t, lambda_tm1)
+    gradient = grad_loss + grad_dist + grad_hinge
+
+    gradient_norm = float(np.linalg.norm(gradient) ** 2)
+    gradient_norms_arr = np.array(gradient_norms)
+
+    eta = 1 / np.sqrt(step)
+    if gradient_norms_arr.size > 0:
+        eta = min(eta, 50.0 / np.sqrt(gradient_norms_arr.sum() + gradient_norm + 1e-8))
+
+    x_new = project_to_box(x_prev - eta * gradient)
 
     lambda_estimate_new = job_arrival_number[step - 1] + lambda_delay
-    delay_new = max(0.0, lambda_estimate_new - service_rate(x_next))
-
-    return x_next, coco_state, delay_new
+    delay_new = max(0.0, lambda_estimate_new - service_rate(x_new))
+    return x_new, gradient_norm, delay_new
 
 
 def run_experiment():
     set_seed(SEED)
     ct, job_arrival_number, total_steps = load_experiment_data()
 
-    print("Start running COCO algorithm...")
+    print("Start running PSGD algorithm...")
     averaged_loss = np.zeros(total_steps)
     averaged_violation = np.zeros(total_steps)
 
     for total_run in range(ROUND_NUM):
         start_time = time.time()
         choice_history = []
-        coco_state = None
+        gradient_norms = []
         lambda_current = job_arrival_number[0]
         delay_history = []
 
         for step in range(1, total_steps + 1):
-            x_value, coco_state, lambda_current = coco_centralized(
+            x_value, gradient_store, lambda_current = naive_surrogate_gd_centralized(
                 step,
                 choice_history,
-                coco_state,
+                gradient_norms,
                 lambda_current,
                 ct,
                 job_arrival_number,
             )
+            gradient_norms.append(gradient_store)
             choice_history.append(x_value)
             delay_history.append(lambda_current)
 
             if step % 200 == 0:
                 print(
-                    "COCO (Centralized): Run",
+                    "PSGD (Centralized): Run",
                     total_run + 1,
                     "Step",
                     step,
@@ -196,7 +233,7 @@ def run_experiment():
         averaged_violation += violation
 
         end_time = time.time()
-        print(f"COCO Run {total_run + 1} elapsed time: {end_time - start_time:.2f} seconds.")
+        print(f"PSGD Run {total_run + 1} elapsed time: {end_time - start_time:.2f} seconds.")
 
     averaged_loss /= ROUND_NUM
     averaged_violation /= ROUND_NUM
@@ -209,7 +246,7 @@ def run_experiment():
         total_steps=total_steps,
         algorithm_label=ALGORITHM_LABEL,
     )
-    print(f"COCO algorithm completed. Results saved to {output_path}")
+    print(f"PSGD algorithm completed. Results saved to {output_path}")
 
 
 if __name__ == "__main__":

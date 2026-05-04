@@ -12,8 +12,8 @@ OUTPUT_FIGURE = SCRIPT_DIR / "fraud_detection.eps"
 RESULT_SPECS = [
     ("Double-DQ", "double_dq_results.npz", "red", "-"),
     ("Double-Q", "double_queue_results.npz", "orange", "-."),
-    ("[24]", "baseline_24_results.npz", "black", ":"),
-    ("[29]", "baseline_29_results.npz", "blue", "--"),
+    ("PSGD", "baseline_24_results.npz", "black", ":"),
+    ("SGDP", "baseline_29_results.npz", "blue", "--"),
 ]
 
 

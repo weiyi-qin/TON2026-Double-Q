@@ -17,8 +17,8 @@ X_UPPER = 6
 X_LOWER = -6
 NUMBER_OF_THETA = 40
 ROUND_NUM = 20
-ALGORITHM_LABEL = "[24]"
-OUTPUT_FILE = "baseline_24_results.npz"
+ALGORITHM_LABEL = "SGDP"
+OUTPUT_FILE = "baseline_29_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -86,10 +86,6 @@ def generate_loss_and_constraints():
     return theta_list, a_list, b_list
 
 
-def positive_constraint_value(a_row, x_value, b_value):
-    return max(0.0, (a_row @ x_value - b_value).item())
-
-
 def project_onto_xt(x_point, a_mat, b_vec):
     y_var = cp.Variable(shape=x_point.shape)
     constraints = [y_var >= X_LOWER, y_var <= X_UPPER, a_mat @ y_var <= b_vec]
@@ -100,66 +96,27 @@ def project_onto_xt(x_point, a_mat, b_vec):
     return y_var.value
 
 
-def distance_and_gradient(x_point, a_mat, b_vec, d_lip):
-    violation = np.maximum(0, a_mat @ x_point - b_vec)
-    if (
-        np.all(violation <= 1e-8)
-        and np.all(x_point >= X_LOWER - 1e-8)
-        and np.all(x_point <= X_UPPER + 1e-8)
-    ):
-        return 0.0, np.zeros_like(x_point)
-
-    projection = project_onto_xt(x_point, a_mat, b_vec)
-    diff = x_point - projection
-    dist_norm = np.linalg.norm(diff)
-    if dist_norm < 1e-10:
-        return 0.0, np.zeros_like(x_point)
-
-    return d_lip * dist_norm, d_lip * diff / dist_norm
-
-
-def naive_surrogate_gd_centralized(
-    step,
-    choice_history,
-    gradient_norms,
-    theta_list,
-    a_list,
-    b_list,
-):
+def coco_centralized(step, choice_history, theta_list, a_list, b_list):
     if step == 1:
-        return np.zeros((X_DIM, 1)), 0.0
+        x_init = np.zeros((X_DIM, 1))
+        return np.clip(x_init, X_LOWER, X_UPPER)
 
-    theta_estimate = theta_list[step - 2]
-    a_estimate = a_list[step - 2]
-    b_estimate = b_list[step - 2]
-    x_prev = choice_history[-1]
+    x_t = choice_history[-1]
+    theta_t = theta_list[step - 2]
+    gradient = 2 * (x_t - theta_t) + NUMBER_OF_THETA * theta_t
 
-    d_lip = 30.0
-    radius = (X_UPPER - X_LOWER) * np.sqrt(2)
+    d_coco = (X_UPPER - X_LOWER) * np.sqrt(2)
+    g_coco = 30.0
+    eta_t = 2 * d_coco / (g_coco * np.sqrt(step))
+    v_t = x_t - eta_t * gradient
 
-    loss_grad = (2 * (x_prev - theta_estimate) + NUMBER_OF_THETA * theta_estimate).T
-    _, grad_d = distance_and_gradient(x_prev, a_estimate, b_estimate, d_lip)
-    dist_grad = grad_d.T
+    if step > 2:
+        y_t = project_onto_xt(v_t, a_list[step - 3], b_list[step - 3])
+    else:
+        y_t = np.clip(v_t, X_LOWER, X_UPPER)
 
-    cons_gradient = np.zeros((1, X_DIM))
-    for i in range(CONSTRAINT_DIM):
-        if positive_constraint_value(a_estimate[i], x_prev, b_estimate[i]) > 0:
-            cons_gradient += a_estimate[i]
-
-    gradient = loss_grad + dist_grad + cons_gradient
-
-    gradient_norm = np.linalg.norm(gradient) ** 2
-    gradient_norms_arr = np.array(gradient_norms)
-    eta = (
-        np.sqrt(2)
-        * radius
-        / np.sqrt(gradient_norms_arr.sum() + gradient_norm)
-    )
-
-    x_new = x_prev - eta * gradient.T
-    x_new = np.clip(x_new, X_LOWER, X_UPPER)
-
-    return x_new, float(gradient_norm)
+    x_next = project_onto_xt(y_t, a_list[step - 2], b_list[step - 2])
+    return x_next
 
 
 def evaluate_choices(choice_history, theta_list, a_list, b_list):
@@ -190,30 +147,21 @@ def run_experiment():
     set_seed(SEED)
     theta_list, a_list, b_list = generate_loss_and_constraints()
 
-    print("Start running NaiveSurrogateGD algorithm...")
+    print("Start running SGDP algorithm...")
     averaged_loss = np.zeros(TOTAL_STEPS)
     averaged_violation = np.zeros(TOTAL_STEPS)
 
     for total_run in range(ROUND_NUM):
         start_time = time.time()
         choice_history = []
-        gradient_norms = []
 
         for step in range(1, TOTAL_STEPS + 1):
-            x_value, gradient_store = naive_surrogate_gd_centralized(
-                step,
-                choice_history,
-                gradient_norms,
-                theta_list,
-                a_list,
-                b_list,
-            )
-            gradient_norms.append(gradient_store)
+            x_value = coco_centralized(step, choice_history, theta_list, a_list, b_list)
             choice_history.append(x_value)
 
             if step % 200 == 0:
                 print(
-                    "NaiveSurrogateGD (Centralized): Run",
+                    "SGDP (Centralized): Run",
                     total_run + 1,
                     "Step",
                     step,
@@ -225,7 +173,7 @@ def run_experiment():
         averaged_violation += violation
 
         end_time = time.time()
-        print(f"NaiveSurrogateGD Run {total_run + 1} elapsed time: {end_time - start_time:.2f} seconds.")
+        print(f"SGDP Run {total_run + 1} elapsed time: {end_time - start_time:.2f} seconds.")
 
     averaged_loss /= ROUND_NUM
     averaged_violation /= ROUND_NUM
@@ -238,7 +186,7 @@ def run_experiment():
         total_steps=TOTAL_STEPS,
         algorithm_label=ALGORITHM_LABEL,
     )
-    print(f"NaiveSurrogateGD algorithm completed. Results saved to {output_path}")
+    print(f"SGDP algorithm completed. Results saved to {output_path}")
 
 
 if __name__ == "__main__":

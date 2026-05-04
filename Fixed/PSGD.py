@@ -14,7 +14,7 @@ A_RANGE = (10, 50)
 B_RANGE = (0, 20)
 TOTAL_STEPS = 1000
 ROUND_NUM = 1
-ALGORITHM_LABEL = "[24]"
+ALGORITHM_LABEL = "PSGD"
 OUTPUT_FILE = "baseline_24_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -178,7 +178,7 @@ def run_experiment():
     set_seed(SEED)
     theta_list, a_mat, b_vec = generate_loss_and_constraints()
 
-    print("Start running NaiveSurrogateGD algorithm...")
+    print("Start running PSGD algorithm...")
     averaged_loss = np.zeros(TOTAL_STEPS)
     averaged_violation = np.zeros(TOTAL_STEPS)
 
@@ -201,7 +201,7 @@ def run_experiment():
 
             if step % 200 == 0:
                 print(
-                    "NaiveSurrogateGD (Centralized): Run",
+                    "PSGD (Centralized): Run",
                     total_run + 1,
                     "Step",
                     step,
@@ -213,7 +213,7 @@ def run_experiment():
         averaged_violation += violation
 
         end_time = time.time()
-        print(f"NaiveSurrogateGD Run {total_run + 1} elapsed time: {end_time - start_time:.2f} seconds.")
+        print(f"PSGD Run {total_run + 1} elapsed time: {end_time - start_time:.2f} seconds.")
 
     averaged_loss /= ROUND_NUM
     averaged_violation /= ROUND_NUM
@@ -227,7 +227,7 @@ def run_experiment():
         seed=SEED,
         algorithm_label=ALGORITHM_LABEL,
     )
-    print(f"NaiveSurrogateGD algorithm completed. Results saved to {output_path}")
+    print(f"PSGD algorithm completed. Results saved to {output_path}")
 
 
 if __name__ == "__main__":

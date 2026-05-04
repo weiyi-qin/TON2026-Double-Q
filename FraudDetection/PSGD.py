@@ -12,7 +12,7 @@ import torch.nn as nn
 SEED = 53
 BATCH_SIZE = 50
 DEVICE = torch.device("cpu")
-ALGORITHM_LABEL = "[24]"
+ALGORITHM_LABEL = "PSGD"
 OUTPUT_FILE = "baseline_24_results.npz"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -239,7 +239,7 @@ def run_native_sgd(raw_data):
         )
 
         if (t + 1) % 1000 == 0:
-            print(f"NativeSGD {t + 1}")
+            print(f"PSGD {t + 1}")
 
     return {"loss": averaged_loss, "violation": averaged_violation}
 
@@ -247,7 +247,7 @@ def run_native_sgd(raw_data):
 def run_experiment():
     raw_data = load_raw_data()
     print(f"Loaded {DATA_PATH.name}: {raw_data.shape[0]} rows, {raw_data.shape[1]} columns")
-    print("Start running NativeSGD algorithm...")
+    print("Start running PSGD algorithm...")
     started_at = time.time()
     result = run_native_sgd(raw_data)
     elapsed = time.time() - started_at
@@ -262,7 +262,7 @@ def run_experiment():
         total_steps=len(loss),
         algorithm_label=ALGORITHM_LABEL,
     )
-    print(f"NativeSGD algorithm completed in {elapsed:.2f} seconds. Results saved to {output_path}")
+    print(f"PSGD algorithm completed in {elapsed:.2f} seconds. Results saved to {output_path}")
 
 
 if __name__ == "__main__":

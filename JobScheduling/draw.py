@@ -12,8 +12,8 @@ OUTPUT_FIGURE = SCRIPT_DIR / "job_scheduling.eps"
 RESULT_SPECS = [
     ("Double-DQ", "double_dq_results.npz", "red", "-", 2.0),
     ("Double-Q", "double_queue_results.npz", "orange", "-.", 2.0),
-    ("[24]", "baseline_24_results.npz", "black", ":", 2.0),
-    ("[29]", "baseline_29_results.npz", "blue", "--", 2.0),
+    ("PSGD", "baseline_24_results.npz", "black", ":", 2.0),
+    ("SGDP", "baseline_29_results.npz", "blue", "--", 2.0),
 ]
 
 
